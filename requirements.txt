@@ -3,3 +3,5 @@ httpx[http2]
 customtkinter
 pillow
 requests
+ffmpeg-python
+uuid

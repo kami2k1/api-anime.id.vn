@@ -15,7 +15,7 @@ class VideoManagerFrame(ctk.CTkFrame):
         self.grid_rowconfigure(0, weight=1)
         
         # Create sidebar and main container
-        self.sidebar = Sidebar(self, self.show_videos, self.show_settings)
+        self.sidebar = Sidebar(self, self.show_videos, self.show_settings, self.show_upload)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
         
         self.main_container = ctk.CTkFrame(self)
@@ -32,13 +32,20 @@ class VideoManagerFrame(ctk.CTkFrame):
 
     def show_videos(self):
         self.clear_main()
-        self.video_frame = VideoListFrame(self.main_container, self.api ,self.parent)
+        self.video_frame = VideoListFrame(self.main_container, self.api, self.parent)
         self.video_frame.grid(row=0, column=0, sticky="nsew")
 
     def show_settings(self):
         self.clear_main()
         self.settings_frame = SettingsFrame(self.main_container, self.api, self.show_videos)
         self.settings_frame.grid(row=0, column=0, sticky="nsew")
+        
+    def show_upload(self):
+        self.clear_main()
+        # Import here to avoid circular imports
+        from gui.upload import UploadFrame
+        self.upload_frame = UploadFrame(self.main_container, self.api)
+        self.upload_frame.grid(row=0, column=0, sticky="nsew")
 
     def clear_main(self):
         for widget in self.main_container.winfo_children():
@@ -290,13 +297,14 @@ class VideoCard(ctk.CTkFrame):
         self.clipboard_append(text)
 
 class Sidebar(ctk.CTkFrame):
-    def __init__(self, parent, show_videos_callback, show_settings_callback):
+    def __init__(self, parent, show_videos_callback, show_settings_callback, show_upload_callback):
         super().__init__(parent, width=200)
         self.grid_propagate(False)
         self.api = parent.api
         
         buttons = [
             ("Videos", show_videos_callback),
+            ("Upload", show_upload_callback),
             ("Settings", show_settings_callback),
             ("Your Token", self.show_token)
         ]
