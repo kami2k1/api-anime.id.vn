@@ -424,12 +424,12 @@ class UploadFrame(ctk.CTkFrame):
         
         # Launch all processes
         processes = await asyncio.gather(*tasks)
-        
+        await asyncio.gather(*(p.wait() for p in processes))
         # Wait for all processes to complete
-        for i, process in enumerate(processes):
-            await process.wait()
-            res = [original_resolution] + resolutions
-            self.log(f"Completed {res[i]}p resolution stream")
+        # for i, process in enumerate(processes):
+        #     await process.wait()
+        #     res = [original_resolution] + resolutions
+        #     self.log(f"Completed {res[i]}p resolution stream")
 
     def _create_master_playlist(self, resolutions, original_resolution, output_folder):
         """Create the master playlist file"""

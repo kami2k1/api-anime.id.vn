@@ -17,11 +17,13 @@ class VideoManagerFrame(ctk.CTkFrame):
         # Create sidebar and main container
         self.sidebar = Sidebar(self, self.show_videos, self.show_settings, self.show_upload)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
-        
+        self.upload_frame = None  # Khởi tạo upload_frame nếu chưa có
         self.main_container = ctk.CTkFrame(self)
         self.main_container.grid(row=0, column=1, sticky="nsew")
         self.main_container.grid_columnconfigure(0, weight=1)
         self.main_container.grid_rowconfigure(0, weight=1)
+        self.video_frame = None  # Khởi tạo video_frame nếu chưa có
+        self.settings_frame = None  # Khởi tạo settings_frame nếu chưa có
         # self.content_frame = ctk.CTkFrame(self)  # Tạo content_frame nếu chưa có
         # self.content_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
 
@@ -32,24 +34,26 @@ class VideoManagerFrame(ctk.CTkFrame):
 
     def show_videos(self):
         self.clear_main()
-        self.video_frame = VideoListFrame(self.main_container, self.api, self.parent)
+        if self.video_frame is None:
+            self.video_frame = VideoListFrame(self.main_container, self.api, self.parent)
         self.video_frame.grid(row=0, column=0, sticky="nsew")
 
     def show_settings(self):
         self.clear_main()
-        self.settings_frame = SettingsFrame(self.main_container, self.api, self.show_videos)
+        if self.settings_frame is None:
+             self.settings_frame = SettingsFrame(self.main_container, self.api, self.show_videos)
         self.settings_frame.grid(row=0, column=0, sticky="nsew")
         
     def show_upload(self):
         self.clear_main()
-        # Import here to avoid circular imports
-        from gui.upload import UploadFrame
-        self.upload_frame = UploadFrame(self.main_container, self.api)
+        if self.upload_frame is None:
+            from gui.upload import UploadFrame
+            self.upload_frame = UploadFrame(self.main_container, self.api)
         self.upload_frame.grid(row=0, column=0, sticky="nsew")
 
     def clear_main(self):
         for widget in self.main_container.winfo_children():
-            widget.destroy()
+            widget.grid_forget()
 
 class VideoListFrame(ctk.CTkFrame):
     def __init__(self, parent, api , pt):
