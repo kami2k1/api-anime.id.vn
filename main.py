@@ -10,7 +10,7 @@ class App(ctk.CTk):
         
         # Configure window
         self.title("Quản Lý video anime.id.vn")
-        self.geometry("1280x720")  # 16:9 ratio
+        self.geometry("1280x860")  # 16:9 ratio
         
         # Configure grid layout
         self.grid_rowconfigure(0, weight=1)

@@ -210,7 +210,7 @@ class Api:
 
     
 
-    async def upload(self, hls_folder, file_ext, id, batch_size=100, type=1, datadz=None):
+    async def upload(self, hls_folder, file_ext, id, batch_size=20, type=1, datadz=None):
         """
         Upload các file theo batch (mỗi batch tối đa 100 file).
 
@@ -244,6 +244,7 @@ class Api:
 
            
             async def upload_batch(batch_files, batch_index):
+                print(f"Đang upload batch {batch_index + 1}/{len(batches)} với {len(batch_files)} file(s)")
                 nonlocal cc , id_lits
                 files = [("file", (os.path.basename(f), open(f, "rb"))) for f in batch_files]
                 try:
@@ -257,6 +258,7 @@ class Api:
                      
 
                     response = await self.client.post(url, files=files, timeout=120)
+                    print(f"Đã upload batch {batch_index + 1}/{len(batches)} {response.text}")
                     data = response.json()
 
                     if data['code'] == 0:
@@ -292,7 +294,7 @@ class Api:
                 
 
           
-            max_concurrent_uploads = 10
+            max_concurrent_uploads = 9999
             tasks = []
             for i in range(0, len(batches), max_concurrent_uploads):
                 current_batches = batches[i:i + max_concurrent_uploads]
@@ -310,52 +312,52 @@ class Api:
 
 # Main Function
 async def main():
-    ins = '''
-bạn cài ffmeg chưa mà chạy ??? chưa cài thì video hd  bên dưới
-link1: https://api.anti-ddos.io.vn/play?video=kami-xQ9UvQPrj9G
-link2 : https://api.anti-ddos.io.vn/play?video=kami-xQ9UvQPrj9G&kami=v2
-bấm vô rồi cái  cài rồi thì bấm enter là được nhé
-'''
-    print(ins)
-    input()
-    app = QApplication(sys.argv)
+#     ins = '''
+# bạn cài ffmeg chưa mà chạy ??? chưa cài thì video hd  bên dưới
+# link1: https://api.anti-ddos.io.vn/play?video=kami-xQ9UvQPrj9G
+# link2 : https://api.anti-ddos.io.vn/play?video=kami-xQ9UvQPrj9G&kami=v2
+# bấm vô rồi cái  cài rồi thì bấm enter là được nhé
+# '''
+#     print(ins)
+#     input()
+#     app = QApplication(sys.argv)
     
-    # Bước 1: Chọn file và nhập thông tin
-    input_file, _ = QFileDialog.getOpenFileName(None, "Chọn file", "", "All Files (*)")
-    title = input("Nhập Tiêu đề đi iem : ->")
-    cc = str(input("Tạo Các Dộ Phân giải con y/n:"))
+#     # Bước 1: Chọn file và nhập thông tin
+#     input_file, _ = QFileDialog.getOpenFileName(None, "Chọn file", "", "All Files (*)")
+#     title = input("Nhập Tiêu đề đi iem : ->")
+#     cc = str(input("Tạo Các Dộ Phân giải con y/n:"))
     
  
-    width, height = get_video_info(input_file)
-    output_folder = os.path.join("data", str(uuid.uuid4()))
-    os.makedirs(output_folder, exist_ok=True)
+    # width, height = get_video_info(input_file)
+    output_folder = os.path.join("data", "fdb14b2a-1287-4a5e-9e05-1e47a93f3dc0")
+    # os.makedirs(output_folder, exist_ok=True)
     
-    # Bước 3: Điều chỉnh độ phân giải
-    STANDARD_RESOLUTIONS = [2160, 1440, 1080, 720, 480, 360, 240, 144]
-    if height not in STANDARD_RESOLUTIONS:
-        print(" không thuôc Dộ Phân giải cho về ")
-        oid = height
-        for res in STANDARD_RESOLUTIONS:
-            if height < res:
-                oid = res
-            elif height > res:
-                height = oid
-                break
-    print(f"📢 Độ phân giải sau khi ép: {height}p")
+    # # Bước 3: Điều chỉnh độ phân giải
+    # STANDARD_RESOLUTIONS = [2160, 1440, 1080, 720, 480, 360, 240, 144]
+    # if height not in STANDARD_RESOLUTIONS:
+    #     print(" không thuôc Dộ Phân giải cho về ")
+    #     oid = height
+    #     for res in STANDARD_RESOLUTIONS:
+    #         if height < res:
+    #             oid = res
+    #         elif height > res:
+    #             height = oid
+    #             break
+    # print(f"📢 Độ phân giải sau khi ép: {height}p")
     
-    # Bước 4: Tạo thumbnails
-    thumb_paths, tim = create_thumbnails(input_file, output_folder)
+    # # Bước 4: Tạo thumbnails
+    # thumb_paths, tim = create_thumbnails(input_file, output_folder)
     
-    # Bước 5: Xác định các độ phân giải cần tạo
-    available_res = [r for r in STANDARD_RESOLUTIONS if r < height] if cc == "y" else []
+    # # Bước 5: Xác định các độ phân giải cần tạo
+    # available_res = [r for r in STANDARD_RESOLUTIONS if r < height] if cc == "y" else []
     
-    # Bước 6: Tạo luồng HLS
-    await create_hls(input_file, available_res, height, output_folder)
+    # # Bước 6: Tạo luồng HLS
+    # await create_hls(input_file, available_res, height, output_folder)
     
-    # Bước 7: Tạo master playlist
-    create_master_playlist(available_res, height, output_folder)
+    # # Bước 7: Tạo master playlist
+    # create_master_playlist(available_res, height, output_folder)
     
-    # Bước 8: Upload file
+    # # Bước 8: Upload file
     api = Api("demo3")
     await api.send()
     thum  = await api.upload(output_folder, ".jpg", 2,type=4)
@@ -364,13 +366,13 @@ bấm vô rồi cái  cài rồi thì bấm enter là được nhé
     print(tsfile)
     data = {
         "id": tsfile,
-        "tile": title,
-        "time": tim,
+        "tile": "kami",
+        "time": 81,
         "thumb":thum[0]
     }
     data = await api.upload(output_folder, ".m3u8", 2, datadz=data, type=2)
     print(data)
-    # shutil.rmtree(output_folder, ignore_errors=True)
+   # shutil.rmtree(output_folder, ignore_errors=True)
 #     print(data)
 #     if data['code'] ==0:
 #         if data['data']['code'] ==0:

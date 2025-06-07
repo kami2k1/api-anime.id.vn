@@ -2,3 +2,6 @@
 config.json
 *.pyc
 data
+dist
+build
+__pycache__
