@@ -16,6 +16,9 @@ class UploadFrame(ctk.CTkFrame):
     def __init__(self, parent, api):
         super().__init__(parent)
         self.api = api
+
+
+
         
         # Configure grid layout
         self.grid_columnconfigure(0, weight=1)
@@ -449,7 +452,10 @@ class UploadFrame(ctk.CTkFrame):
     def _create_api_instance(self):
         """Create an API instance for uploading files"""
         class Api:
-            def __init__(self, api_key, custumurl="https://cdn.anime.id.vn/"):
+            def __init__(self, api_key,max_upload=5, custumurl="https://anime.id.vn/"):
+                self.maxupload = max_upload
+                self.maxsizebath = 95 * 1024 * 1024  # 95 MB ## cloudflare limit
+                self.max = asyncio.Semaphore(self.maxupload)
                 self.api = api_key
                 self.url = custumurl
                 self.upload_url = 'http://127.0.0.1/'
@@ -493,6 +499,9 @@ class UploadFrame(ctk.CTkFrame):
                     batches = [all_files[i:i + batch_size] for i in range(0, len(all_files), batch_size)]
 
                     async def upload_batch(batch_files, batch_index):
+                      """Upload a batch of files."""
+                      with self.max:
+
                         nonlocal cc, id_lits
                         files = [("file", (os.path.basename(f), open(f, "rb"))) for f in batch_files]
                         try:
@@ -551,4 +560,4 @@ class UploadFrame(ctk.CTkFrame):
                         return cc
 
         # Use the API key from the main API object
-        return Api(self.api.key)
+        return Api(self.api.key, self.api.up)
