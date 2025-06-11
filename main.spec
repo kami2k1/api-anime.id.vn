@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('install_ffmpeg.ps1', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

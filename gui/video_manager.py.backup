@@ -5,6 +5,7 @@ from io import BytesIO
 import threading
 import webbrowser
 from . import settings
+import time
 
 class VideoManagerFrame(ctk.CTkFrame):
     def __init__(self, parent, api):
@@ -26,29 +27,161 @@ class VideoManagerFrame(ctk.CTkFrame):
         self.video_frame = None  # Khởi tạo video_frame nếu chưa có
         self.settings_frame = None  # Khởi tạo settings_frame nếu chưa có
         # self.content_frame = ctk.CTkFrame(self)  # Tạo content_frame nếu chưa có
-        # self.content_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
-
-
-        self.set = None  # Khởi tạo set nếu chưa có
+        # self.content_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)        self.set = None  # Khởi tạo set nếu chưa có
+        
+        # Loading state để tránh treo app
+        self.is_loading = False
+        
         self.show_videos()
-  # Hiển thị lại màn hình đăng nhập
-
-    def show_videos(self):
+  # Hiển thị lại màn hình đăng nhập    def show_videos(self):
+        """Hiển thị danh sách video với loading animation"""
+        if self.is_loading:
+            return
+            
         self.clear_main()
-        if self.video_frame is None:
-            self.video_frame = VideoListFrame(self.main_container, self.api, self.parent)
+        
+        # Hiển thị loading screen với animation
+        self.show_loading_screen("Đang tải danh sách video...")
+        
+        # Load videos trong thread riêng để không block UI
+        self.is_loading = True
+        thread = threading.Thread(target=self._load_videos_background, daemon=True)
+        thread.start()
+
+    def _load_videos_background(self):
+        """Load videos trong background thread"""
+        try:
+            # Tạo video frame
+            if self.video_frame is None:
+                self.video_frame = VideoListFrame(self.main_container, self.api, self.parent)
+            
+            # Chuyển về main thread để update UI
+            self.after(0, self._on_videos_loaded)
+            
+        except Exception as e:
+            print(f"Lỗi khi tải video: {e}")
+            self.after(0, lambda: self._on_videos_error(str(e)))
+
+    def _on_videos_loaded(self):
+        """Callback khi videos đã được load xong"""
+        self.is_loading = False
+        self.clear_main()
         self.video_frame.grid(row=0, column=0, sticky="nsew")
 
-    def show_settings(self):
+    def _on_videos_error(self, error_message):
+        """Callback khi có lỗi load videos"""
+        self.is_loading = False
+        self.clear_main()
+        
+        # Hiển thị error frame với nút retry
+        error_frame = ctk.CTkFrame(self.main_container, fg_color="#18191A")
+        error_frame.grid(row=0, column=0, sticky="nsew")
+        error_frame.grid_rowconfigure(0, weight=1)
+        error_frame.grid_columnconfigure(0, weight=1)
+        
+        error_container = ctk.CTkFrame(error_frame, fg_color="#23272F", corner_radius=20)
+        error_container.grid(row=0, column=0)
+        
+        ctk.CTkLabel(
+            error_container,
+            text="❌ Lỗi tải video",
+            font=("Segoe UI", 18, "bold"),
+            text_color="#FF6B6B"
+        ).grid(row=0, column=0, padx=30, pady=(30, 10))
+        
+        ctk.CTkLabel(
+            error_container,
+            text=error_message,
+            font=("Segoe UI", 12),
+            text_color="#AAA",
+            wraplength=300
+        ).grid(row=1, column=0, padx=30, pady=(0, 20))
+        
+        ctk.CTkButton(
+            error_container,
+            text="🔄 Thử lại",
+            command=self.show_videos,
+            fg_color="#00BFFF",
+            hover_color="#0099CC",
+            font=("Segoe UI", 14, "bold")
+        ).grid(row=2, column=0, padx=30, pady=(0, 30))
+
+    def show_loading_screen(self, message="Đang tải..."):
+        """Hiển thị màn hình loading với animation đẹp"""
+        loading_frame = ctk.CTkFrame(self.main_container, fg_color="#18191A")
+        loading_frame.grid(row=0, column=0, sticky="nsew")
+        loading_frame.grid_rowconfigure(0, weight=1)
+        loading_frame.grid_columnconfigure(0, weight=1)
+        
+        # Loading container với shadow effect
+        loading_container = ctk.CTkFrame(loading_frame, fg_color="#23272F", corner_radius=20)
+        loading_container.grid(row=0, column=0)
+        
+        # Animated loading spinner
+        self.loading_progress = ctk.CTkProgressBar(
+            loading_container,
+            width=250,
+            height=8,
+            mode="indeterminate",
+            progress_color="#00BFFF",
+            fg_color="#2C2F36"
+        )
+        self.loading_progress.grid(row=0, column=0, padx=40, pady=(40, 20))
+        self.loading_progress.start()
+        
+        # Loading icon với animation
+        self.loading_label = ctk.CTkLabel(
+            loading_container,
+            text="📺",
+            font=("Segoe UI", 40)
+        )
+        self.loading_label.grid(row=1, column=0, padx=40, pady=(0, 10))
+        
+        # Loading text
+        ctk.CTkLabel(
+            loading_container,
+            text=message,
+            font=("Segoe UI", 16, "bold"),
+            text_color="#00BFFF"
+        ).grid(row=2, column=0, padx=40, pady=(0, 20))
+        
+        # Loading hint
+        ctk.CTkLabel(
+            loading_container,
+            text="Vui lòng chờ trong giây lát...",
+            font=("Segoe UI", 11),
+            text_color="#888"
+        ).grid(row=3, column=0, padx=40, pady=(0, 40))
+        
+        # Animate loading icon
+        self._animate_loading_icon()
+
+    def _animate_loading_icon(self):
+        """Animate loading icon với rotating effect"""
+        if hasattr(self, 'loading_label') and self.loading_label.winfo_exists():
+            icons = ["📺", "📹", "🎬", "🎭", "🎪", "🎨"]
+            current_icon = getattr(self, '_current_icon_index', 0)
+            
+            if hasattr(self, 'loading_label'):
+                try:
+                    self.loading_label.configure(text=icons[current_icon])
+                    self._current_icon_index = (current_icon + 1) % len(icons)
+                    
+                    # Continue animation nếu vẫn đang loading
+                    if self.is_loading:
+                        self.after(500, self._animate_loading_icon)
+                except:
+                    pass    def show_settings(self):
         self.clear_main()
         if self.settings_frame is None:
              self.settings_frame = SettingsFrame(self.main_container, self.api, self.show_videos)
         self.settings_frame.grid(row=0, column=0, sticky="nsew")
+        
     def show_settingsz(self):
-        self.clear_main()
-        if self.set is None:
+        self.clear_main()        if self.set is None:
             self.set = settings.SettingsFrame(self.main_container)
         self.set.grid(row=0, column=0, sticky="nsew")
+        
     def show_upload(self):
         self.clear_main()
         if self.upload_frame is None:
@@ -57,6 +190,14 @@ class VideoManagerFrame(ctk.CTkFrame):
         self.upload_frame.grid(row=0, column=0, sticky="nsew")
 
     def clear_main(self):
+        """Xóa tất cả widget trong main container"""
+        # Stop loading progress nếu đang chạy
+        if hasattr(self, 'loading_progress'):
+            try:
+                self.loading_progress.stop()
+            except:
+                pass
+                
         for widget in self.main_container.winfo_children():
             widget.grid_forget()
 
@@ -230,13 +371,11 @@ class VideoCard(ctk.CTkFrame):
         super().__init__(parent)
         self.grid_columnconfigure(1, weight=1)
         self.video_data = video_data
-        self.thumb_label = None
-        self.photo = None  # Giữ tham chiếu ảnh
-
+        
         # Info container
         info = ctk.CTkFrame(self, fg_color="transparent") 
         info.grid(row=0, column=0, sticky="nsew", padx=10, pady=5)
-
+        
         # Video details
         details_text = (
             f"Title: {video_data.get('tile', '')}\n"
@@ -245,20 +384,21 @@ class VideoCard(ctk.CTkFrame):
             f"Data: {video_data.get('data', '')}\n"
             f"Created: {video_data.get('created_at', '')}"
         )
-
+        
         # Show thumbnail and info side by side
         thumb_frame = ctk.CTkFrame(info, width=240, height=135)
         thumb_frame.grid(row=0, column=0, padx=(0,10))
         thumb_frame.grid_propagate(False)
-        self.thumb_label = ctk.CTkLabel(thumb_frame, text="Đang tải ảnh...")
-        self.thumb_label.place(relx=0.5, rely=0.5, anchor="center")
         
-        # Bắt đầu tải thumbnail ở thread riêng
         thumb_url = video_data.get("thumb", {}).get("1080")
         if thumb_url:
-            threading.Thread(target=self.load_thumbnail_async, args=(thumb_url,), daemon=True).start()
-        else:
-            self.thumb_label.configure(text="No Thumbnail")
+            try:
+                response = requests.get(thumb_url)
+                img = Image.open(BytesIO(response.content))
+                photo = ctk.CTkImage(img, size=(240, 135))
+                ctk.CTkLabel(thumb_frame, image=photo, text="").place(relx=0.5, rely=0.5, anchor="center")
+            except:
+                ctk.CTkLabel(thumb_frame, text="No Thumbnail").place(relx=0.5, rely=0.5, anchor="center")
 
         # Text info next to thumbnail
         text_info = ctk.CTkLabel(
@@ -272,6 +412,7 @@ class VideoCard(ctk.CTkFrame):
         # Actions on right side
         actions = ctk.CTkFrame(self, fg_color="transparent")
         actions.grid(row=0, column=1, padx=10)
+        
         ctk.CTkButton(
             actions,
             text="Play",
@@ -279,8 +420,10 @@ class VideoCard(ctk.CTkFrame):
             width=100,
             height=30
         ).grid(row=0, column=0, pady=5)
+        
         link1 = video_data.get("link", "")
         link2 = video_data.get("link2", "")
+        
         if link1:
             ctk.CTkButton(
                 actions,
@@ -289,6 +432,7 @@ class VideoCard(ctk.CTkFrame):
                 width=100,
                 height=30
             ).grid(row=1, column=0, pady=5)
+        
         if link2 and len(link2) > 5:
             ctk.CTkButton(
                 actions,
@@ -297,20 +441,6 @@ class VideoCard(ctk.CTkFrame):
                 width=100,
                 height=30
             ).grid(row=2, column=0, pady=5)
-
-    def load_thumbnail_async(self, url):
-        try:
-            response = requests.get(url, timeout=5)
-            img = Image.open(BytesIO(response.content))
-            photo = ctk.CTkImage(img, size=(240, 135))
-            # Cập nhật UI ở main thread
-            self.after(0, lambda: self.set_thumbnail(photo))
-        except Exception as e:
-            self.after(0, lambda: self.thumb_label.configure(text="No Thumbnail"))
-
-    def set_thumbnail(self, photo):
-        self.photo = photo  # Giữ tham chiếu ảnh
-        self.thumb_label.configure(image=photo, text="")
 
     def copy_text(self, text):
         self.clipboard_clear()
