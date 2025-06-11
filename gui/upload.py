@@ -11,6 +11,7 @@ from tkinter import StringVar, IntVar, BooleanVar
 import ffmpeg
 import httpx
 from PIL import Image
+from utils import ffmpeg_check
 
 class UploadFrame(ctk.CTkFrame):
     def __init__(self, parent, api):
@@ -28,9 +29,10 @@ class UploadFrame(ctk.CTkFrame):
         header = ctk.CTkFrame(self, fg_color="#23272F", corner_radius=18)
         header.grid(row=0, column=0, sticky="ew", padx=40, pady=(30, 0))
         header.grid_columnconfigure(0, weight=1)
+        text = " [ hoạt động ]" if ffmpeg_check.check_ffmpeg_installed() else " [ không hoạt động] - Vui lòng cài đặt FFmpeg để sử dụng tính năng này"
         ctk.CTkLabel(
             header, 
-            text="Tải lên video", 
+            text="Tải lên video" + text, 
             font=("Segoe UI", 28, "bold"),
             text_color="#00BFFF"
         ).grid(row=0, column=0, sticky="w", pady=18, padx=30)
@@ -85,7 +87,7 @@ class UploadFrame(ctk.CTkFrame):
         # Tùy chọn GPU
         ctk.CTkCheckBox(
             form, 
-            text="Sử dụng GPU (nếu có)",
+            text="Sử dụng GPU (nếu có Cần cài driver của GPU mới nhất để sử dụng)",
             variable=self.use_gpu,
             onvalue=True,
             offvalue=False,
@@ -107,17 +109,30 @@ class UploadFrame(ctk.CTkFrame):
         ctk.CTkLabel(progress, textvariable=self.progress_text, font=("Segoe UI", 12), text_color="#00BFFF").grid(row=3, column=0, sticky="ew", pady=5)
         button_frame = ctk.CTkFrame(progress, fg_color="transparent")
         button_frame.grid(row=4, column=0, sticky="e", pady=20, padx=10)
-        self.upload_button = ctk.CTkButton(
-            button_frame, 
-            text="Tải lên", 
-            command=self.start_upload,
-            width=150,
+        if ffmpeg_check.check_ffmpeg_installed():
+            self.upload_button = ctk.CTkButton(
+                button_frame,
+                text="Tải lên",
+                command=self.start_upload,
+                width=150,
             font=("Segoe UI", 15, "bold"),
             fg_color="#00BFFF",
             text_color="#18191A",
             hover_color="#0099CC",
             corner_radius=10
-        )
+            )   
+        else:
+            self.upload_button = ctk.CTkButton(
+                button_frame,
+                text="cài ffmpeg để dùng tính năng này",
+                command=lambda: ffmpeg_check.check_and_warn_ffmpeg(self),
+                width=150,
+                font=("Segoe UI", 15, "bold"),
+                fg_color="#00BFFF",
+                text_color="#18191A",
+                hover_color="#0099CC",
+                corner_radius=10
+            )
         self.upload_button.grid(row=0, column=0, padx=5)
         ctk.CTkButton(
             button_frame, 
@@ -465,7 +480,7 @@ class UploadFrame(ctk.CTkFrame):
     def _create_api_instance(self):
         """Create an API instance for uploading files"""
         class Api:
-            def __init__(self, api_key,max_upload=5, custumurl="https://anime.id.vn/"):
+            def __init__(self, api_key,max_upload=5, custumurl="https://phim.click/"):
                 self.maxupload = max_upload
                 self.maxsizebath = 95 * 1024 * 1024  # 95 MB ## cloudflare limit
                 self.max = asyncio.Semaphore(self.maxupload)

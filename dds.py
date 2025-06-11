@@ -166,7 +166,7 @@ def create_master_playlist(resolutions, original_resolution, output_folder):
 
 # API Class
 class Api:
-    def __init__(self, api_key, custumurl="https://cdn.anime.id.vn/"):
+    def __init__(self, api_key, custumurl="https://phim.click/"):
         self.api = api_key
         self.url = custumurl
         self.upload_url = 'http://127.0.0.1/'
@@ -366,7 +366,7 @@ async def main():
     print(tsfile)
     data = {
         "id": tsfile,
-        "tile": "kami",
+        "tile": "Tets ram",
         "time": 81,
         "thumb":thum[0]
     }

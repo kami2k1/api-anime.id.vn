@@ -1,0 +1,10 @@
+{
+  "ffmpeg_checked": true,
+  "ffmpeg_warning_shown": false,
+  "last_upload_folder": "",
+  "default_create_lower_res": true,
+  "default_use_gpu": false,
+  "theme": "dark",
+  "language": "vi",
+  "test": "success"
+}

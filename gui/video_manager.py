@@ -4,6 +4,7 @@ import requests
 from io import BytesIO
 import threading
 import webbrowser
+from . import settings
 
 class VideoManagerFrame(ctk.CTkFrame):
     def __init__(self, parent, api):
@@ -15,7 +16,7 @@ class VideoManagerFrame(ctk.CTkFrame):
         self.grid_rowconfigure(0, weight=1)
         
         # Create sidebar and main container
-        self.sidebar = Sidebar(self, self.show_videos, self.show_settings, self.show_upload)
+        self.sidebar = Sidebar(self, self.show_videos, self.show_settings, self.show_upload,self.show_settingsz)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
         self.upload_frame = None  # Khởi tạo upload_frame nếu chưa có
         self.main_container = ctk.CTkFrame(self)
@@ -28,7 +29,7 @@ class VideoManagerFrame(ctk.CTkFrame):
         # self.content_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
 
 
-        
+        self.set = None  # Khởi tạo set nếu chưa có
         self.show_videos()
   # Hiển thị lại màn hình đăng nhập
 
@@ -43,7 +44,11 @@ class VideoManagerFrame(ctk.CTkFrame):
         if self.settings_frame is None:
              self.settings_frame = SettingsFrame(self.main_container, self.api, self.show_videos)
         self.settings_frame.grid(row=0, column=0, sticky="nsew")
-        
+    def show_settingsz(self):
+        self.clear_main()
+        if self.set is None:
+            self.set = settings.SettingsFrame(self.main_container)
+        self.set.grid(row=0, column=0, sticky="nsew")
     def show_upload(self):
         self.clear_main()
         if self.upload_frame is None:
@@ -301,20 +306,30 @@ class VideoCard(ctk.CTkFrame):
         self.clipboard_append(text)
 
 class Sidebar(ctk.CTkFrame):
-    def __init__(self, parent, show_videos_callback, show_settings_callback, show_upload_callback):
+    def __init__(self, parent, show_videos_callback, show_settings_callback, show_upload_callback,show_ffmpeg_info):
         super().__init__(parent, width=200)
+        self.parent = parent
         self.grid_propagate(False)
         self.api = parent.api
+        self.set  = None
         
         buttons = [
             ("Videos", show_videos_callback),
             ("Upload", show_upload_callback),
-            ("Settings", show_settings_callback),
-            ("Your Token", self.show_token)
+            ("Origin", show_settings_callback),
+            ("Token", self.show_token),
+            ("Settings", show_ffmpeg_info)
         ]
         
         for i, (text, command) in enumerate(buttons):
             ctk.CTkButton(self, text=text, command=command, width=160).grid(row=i, column=0, padx=20, pady=10)
+        # Thêm nút Github ở dưới cùng
+        ctk.CTkButton(
+            self,
+            text="Github",
+            command=lambda: webbrowser.open("https://github.com/kami2k1/api-anime.id.vn"),
+            width=160
+        ).grid(row=len(buttons), column=0, padx=20, pady=(30,10))
 
     def show_token(self):
         dialog = ctk.CTkToplevel(self)
