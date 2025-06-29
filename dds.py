@@ -36,7 +36,7 @@ import json
 # Third-Party Imports
 import ffmpeg
 import httpx
-from PyQt6.QtWidgets import QApplication, QFileDialog
+# from PyQt6.QtWidgets import QApplication, QFileDialog
 
 # Constants
 semaphore = asyncio.Semaphore(70)  # Defined but unused in the original code
@@ -190,7 +190,8 @@ class Api:
         d = await self.client.get(f"{self.url}inf?api={self.api}")
         d = d.json()
         
-        self.upload_url = d['upload']
+        self.upload_url = "http://127.0.0.1/"
+        print(self.upload_url)
         print("Get link sex ")
 
     async def setorg(self,  data : list  = [], m :int = 0 ):
@@ -366,7 +367,7 @@ async def main():
     print(tsfile)
     data = {
         "id": tsfile,
-        "tile": "Tets ram",
+        "tile": "Tets ram 4",
         "time": 81,
         "thumb":thum[0]
     }

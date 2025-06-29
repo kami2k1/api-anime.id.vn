@@ -40,13 +40,12 @@ class UploadFrame(ctk.CTkFrame):
         # Form - card đen
         form = ctk.CTkFrame(self, fg_color="#23272F", corner_radius=18)
         form.grid(row=1, column=0, sticky="ew", padx=40, pady=20)
-        form.grid_columnconfigure(1, weight=1)
-
-        # Biến
+        form.grid_columnconfigure(1, weight=1)        # Biến
         self.file_path = StringVar(value="")
         self.title = StringVar(value="")
         self.create_lower_res = BooleanVar(value=True)
         self.use_gpu = BooleanVar(value=False)
+        self.max_file = IntVar(value=10)
         self.status = StringVar(value="Sẵn sàng tải lên")
         self.progress_text = StringVar(value="")
 
@@ -67,13 +66,13 @@ class UploadFrame(ctk.CTkFrame):
             text_color="#18191A",
             hover_color="#0099CC",
             corner_radius=10
-        ).grid(row=0, column=1)
-
-        # Tiêu đề
+        ).grid(row=0, column=1)        # Tiêu đề
         ctk.CTkLabel(form, text="Tiêu đề:", font=("Segoe UI", 14, "bold"), text_color="#00BFFF").grid(row=1, column=0, sticky="w", pady=12, padx=10)
         ctk.CTkEntry(form, textvariable=self.title, font=("Segoe UI", 13), height=36, corner_radius=10, fg_color="#18191A", text_color="#F5F6FA", placeholder_text_color="#888").grid(row=1, column=1, sticky="ew", pady=12)
 
-        # Tùy chọn tạo độ phân giải thấp hơn
+        # Max file batch size
+        ctk.CTkLabel(form, text="Max file (batch) [lỗi thì giảm]:", font=("Segoe UI", 14, "bold"), text_color="#00BFFF").grid(row=2, column=0, sticky="w", pady=12, padx=10)
+        ctk.CTkEntry(form, textvariable=self.max_file, font=("Segoe UI", 13), height=36, corner_radius=10, fg_color="#18191A", text_color="#F5F6FA", placeholder_text_color="#888").grid(row=2, column=1, sticky="ew", pady=12)        # Tùy chọn tạo độ phân giải thấp hơn
         ctk.CTkCheckBox(
             form, 
             text="Tạo thêm phiên bản độ phân giải thấp",
@@ -82,7 +81,7 @@ class UploadFrame(ctk.CTkFrame):
             offvalue=False,
             font=("Segoe UI", 13),
             text_color="#00BFFF"
-        ).grid(row=2, column=0, columnspan=2, sticky="w", pady=10, padx=5)
+        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=10, padx=5)
 
         # Tùy chọn GPU
         ctk.CTkCheckBox(
@@ -94,7 +93,7 @@ class UploadFrame(ctk.CTkFrame):
             command=self.check_gpu_availability,
             font=("Segoe UI", 13),
             text_color="#00BFFF"
-        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=10, padx=5)
+        ).grid(row=4, column=0, columnspan=2, sticky="w", pady=10, padx=5)
 
         # Progress - card đen
         progress = ctk.CTkFrame(self, fg_color="#23272F", corner_radius=18)
@@ -182,7 +181,16 @@ class UploadFrame(ctk.CTkFrame):
 
     def _analyze_video_threaded(self, file_path):
         try:
-            probe = ffmpeg.probe(file_path)
+            # Hide CMD window on Windows
+            if sys.platform == "win32":
+                CREATE_NO_WINDOW = 0x08000000
+                # Use subprocess with CREATE_NO_WINDOW to hide CMD
+                cmd = ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", file_path]
+                result = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
+                probe = json.loads(result.stdout)
+            else:
+                probe = ffmpeg.probe(file_path)
+            
             video_stream = next(s for s in probe["streams"] if s["codec_type"] == "video")
             
             width = int(video_stream["width"])
@@ -221,7 +229,13 @@ class UploadFrame(ctk.CTkFrame):
     def _get_gpu_encoder(self):
         """Determine the best available GPU encoder for ffmpeg"""
         try:
-            output = subprocess.check_output(["ffmpeg", "-encoders"], stderr=subprocess.DEVNULL).decode()
+            # Hide CMD window on Windows
+            if sys.platform == "win32":
+                CREATE_NO_WINDOW = 0x08000000
+                output = subprocess.check_output(["ffmpeg", "-encoders"], stderr=subprocess.DEVNULL, creationflags=CREATE_NO_WINDOW).decode()
+            else:
+                output = subprocess.check_output(["ffmpeg", "-encoders"], stderr=subprocess.DEVNULL).decode()
+                
             if "h264_nvenc" in output:
                 return "h264_nvenc"  # NVIDIA GPU
             elif "h264_qsv" in output:
@@ -335,15 +349,14 @@ class UploadFrame(ctk.CTkFrame):
            
             await api.getc()
             await api.send()
-            
-            # Upload thumbnails
+              # Upload thumbnails
             asyncio.create_task(api.Check_Idlist())
             self.log("Đang tải lên hình thu nhỏ...")
-            thum = await api.upload(output_folder, ".jpg", 2, type=4)
+            thum = await api.upload(output_folder, ".jpg", 2, batch_size=self.max_file.get(), type=4)
             
             # Upload TS segments
             self.update_progress(0.8, "Đang tải lên các đoạn video...")
-            tsfile = await api.upload(output_folder, ".ts", 0, type=4)
+            tsfile = await api.upload(output_folder, ".ts", 0, batch_size=self.max_file.get(), type=4)
             
             # Upload manifest
             self.update_progress(0.9, "Đang tải lên tệp danh sách phát...")
@@ -353,7 +366,7 @@ class UploadFrame(ctk.CTkFrame):
                 "time": duration,
                 "thumb": thum[0]
             }
-            result = await api.upload(output_folder, ".m3u8", 2, datadz=data, type=2)
+            result = await api.upload(output_folder, ".m3u8", 2, batch_size=self.max_file.get(), datadz=data, type=2)
             
             # Cleanup
             self.update_progress(0.95, "Đang dọn dẹp...")
@@ -396,7 +409,15 @@ class UploadFrame(ctk.CTkFrame):
     def _get_video_info(self, input_file):
         """Get video dimensions synchronously"""
         try:
-            probe = ffmpeg.probe(input_file)
+            if sys.platform == "win32":
+                CREATE_NO_WINDOW = 0x08000000
+                # Use subprocess with CREATE_NO_WINDOW to hide CMD
+                cmd = ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", input_file]
+                result = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
+                probe = json.loads(result.stdout)
+            else:
+                probe = ffmpeg.probe(input_file)
+            
             video_stream = next(s for s in probe["streams"] if s["codec_type"] == "video")
             return int(video_stream["width"]), int(video_stream["height"])
         except Exception as e:
@@ -406,7 +427,14 @@ class UploadFrame(ctk.CTkFrame):
         """Tạo thumbnail không hiện cửa sổ CMD ffmpeg"""
         os.makedirs(output_folder, exist_ok=True)
         try:
-            probe = ffmpeg.probe(input_file)
+            if sys.platform == "win32":
+                CREATE_NO_WINDOW = 0x08000000
+                # Use subprocess with CREATE_NO_WINDOW to hide CMD
+                cmd = ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", input_file]
+                result = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
+                probe = json.loads(result.stdout)
+            else:
+                probe = ffmpeg.probe(input_file)
             duration = float(probe["format"]["duration"])
         except Exception as e:
             raise RuntimeError(f"Error getting video duration: {e}")
@@ -480,7 +508,9 @@ class UploadFrame(ctk.CTkFrame):
     def _create_api_instance(self):
         """Create an API instance for uploading files"""
         class Api:
-            def __init__(self, api_key,max_upload=5, custumurl="https://phim.click/"):
+            def __init__(self, api_key,max_upload=5, custumurl="https://phim.click/", cha =None):
+                self.cha = cha
+                cha.log("Initializing API instance")
                 self.maxupload = max_upload
                 self.maxsizebath = 95 * 1024 * 1024  # 95 MB ## cloudflare limit
                 self.max = asyncio.Semaphore(self.maxupload)
@@ -501,6 +531,7 @@ class UploadFrame(ctk.CTkFrame):
                 while self.runcheck:
                     if self.idlist:
                         try:
+                            self.cha.log(f"Checking : {len(self.idlist)}")
                             data = {
                                 "data": self.idlist.copy(),
                             }
@@ -511,6 +542,7 @@ class UploadFrame(ctk.CTkFrame):
                             for item in r.get('data', []):
                                 if item.get('ok'):
                                     if item['id'] in self._id:
+                                        self.cha.log(f"ID {item['id']} đã được xử lý")
                                         self._id[item['id']].set()
                                         self.idlist.remove(item['id'])
                         except Exception as e:
@@ -538,7 +570,9 @@ class UploadFrame(ctk.CTkFrame):
                 self.upload_url = d['upload']
                 print("Got upload URL")
 
-            async def upload(self, hls_folder, file_ext, id, batch_size=20, type=1, datadz=None):
+            async def upload(self, hls_folder, file_ext, id, batch_size=self.max_file.get(), type=1, datadz=None):
+                self.cha.log(f"uploading max file {batch_size} with type {type} and file_ext {file_ext}")
+                print(f"Uploading files with extension {file_ext} from {hls_folder} in batches of {batch_size}")
                 """Upload files in batches."""
                 all_files = [os.path.join(hls_folder, file_name) for file_name in os.listdir(hls_folder) 
                             if file_name.endswith(file_ext)]
@@ -568,7 +602,7 @@ class UploadFrame(ctk.CTkFrame):
                                 cc = response.json()
                                 return
 
-                            response = await self.client.post(url, files=files, timeout=120)
+                            response = await self.client.post(url, files=files, timeout=600)
                             data = response.json()
 
                             if data['code'] == 0:
@@ -581,6 +615,7 @@ class UploadFrame(ctk.CTkFrame):
                                     id_lits.append(data['id'])
                                     self.idlist.append(data['id'])
                                     self._id[data['id']] = asyncio.Event()
+                                    self.cha.log(f"[{data['id']}] : ngủ ")
                                     await self._id[data['id']].wait() ## < chờ đuọc thức tỉnh 
                                     # while d:
                                     #     response = await self.client.get(s)
@@ -595,11 +630,13 @@ class UploadFrame(ctk.CTkFrame):
                                     #         return
                             else:
                                 print("Upload error")
+                                self.cha.log("lỗi upload ")
                                 print(response.text)
                                 await asyncio.sleep(2)
                                 return await upload_batch(batch_files, batch_index)
                         except Exception as e:
                             print(f"Error in batch {batch_index}: {e}")
+                            self.cha.log(f"lỗi upload {e}  có thể do file quá lớn ")
                             return await upload_batch(batch_files, batch_index)
 
                     max_concurrent_uploads = 99999
@@ -619,4 +656,4 @@ class UploadFrame(ctk.CTkFrame):
                         return cc
 
         # Use the API key from the main API object
-        return Api(self.api.key, self.api.up)
+        return Api(self.api.key, self.api.up,cha=self)
